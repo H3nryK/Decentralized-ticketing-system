@@ -1,6 +1,9 @@
 import Nat "mo:base/Nat";
 import HashMap "mo:base/HashMap";
 import Principal "mo:base/Principal";
+import Iter "mo:base/Iter";
+import Time "mo:base/Time";
+import Hash "mo:base/Hash";
 
 type Ticket = {
     id: Nat;
@@ -21,12 +24,17 @@ type Event = {
     description: Text;
 };
 
-var events = HashMap.HashMap<Nat, Event>(0, func Nat.equal, ?);
-var tickets = HashMap.HashMap<Nat, Ticket>(0, func Nat.equal, ?);
-
 actor {
+    var events = HashMap.HashMap<Nat, Event>(0, Nat.equal, Hash.hash);
+    var tickets = HashMap.HashMap<Nat, Ticket>(0, Nat.equal, Hash.hash);
+
     // Create a new event
     public shared ({ caller }) func createEvent(newEvent : Event) : async Nat {
+        let eventId = await createEventHelper(newEvent);
+        return eventId;
+    };
+
+    private func createEventHelper(newEvent : Event) : async Nat {
         let eventId = Nat.fromNat(events.size());
         events.put(eventId, {
             id = eventId;
@@ -119,10 +127,9 @@ actor {
 
     // Get all tickets for an event
     public query func getEventTickets(eventId : Nat) : async [Ticket] {
-        let eventTickets = Iter.fromArray(Iter.toArray(tickets.vals()))
-                               .filter(func(ticket : Ticket) : Bool {
-                                    ticket.eventId == eventId;
-                                });
+        let eventTickets = Iter.filter<Ticket>(tickets.vals(), func(ticket : Ticket) : Bool {
+            ticket.eventId == eventId;
+        });
         return Iter.toArray(eventTickets);
     };
 };
